@@ -19,42 +19,54 @@ namespace Posielanie_na_server
             {
                 WebClient client = new WebClient();
 
-                DirectoryInfo di = new DirectoryInfo(@"C:\Users\janik\OneDrive\PC\prepis\");
+                DirectoryInfo di = new DirectoryInfo(@"C:\Users\SKVARA\Desktop\obrazky");
                 try
                 {
-                    // Determine whether the directory exists.
                     if (di.Exists)
                     {
-                        // Indicate that the directory already exists.
-                        Console.WriteLine("That path exists already.");
                        
-                    }
-                    else { 
-                    di.Create();
-                    Console.WriteLine("The directory was created successfully.");
+                       
                     }
                 }
                 catch (Exception e)
                 {
                     Console.WriteLine("The process failed: {0}", e.ToString());
+                    Console.ReadKey();
                 }
 
                 
 
 
                 foreach (FileInfo fi in di.GetFiles())
-                    {
-                        Console.WriteLine(@"Copying \{0}", fi.Directory + "\\" + fi.Name);
+                {
                    
-                        client.Credentials = CredentialCache.DefaultCredentials;
-                        //client.UploadFileCompleted += WebClientCompleted;
-                       // client.UploadFile(new Uri("http://localhost/uploads/upload.php"), "POST", fi.Directory + "\\" + fi.Name);
-                        client.Dispose();
-                        NameValueCollection parameters = new NameValueCollection();
-                        parameters.Add("name", fi.Name);
-                        //parameters.Add("value2", "xyz");
-                        client.QueryString = parameters;
-                        client.UploadFile(new Uri("http://localhost/uploads/upload.php"), "POST", fi.Directory + "\\" + fi.Name);
+                   
+                    WebRequest request = WebRequest.Create("ftp://localhost" + @"/" + fi.Name);
+                    request.Method = WebRequestMethods.Ftp.ListDirectoryDetails;
+                    request.Credentials = new NetworkCredential("jano", "jano");
+                        
+                    request.Method = WebRequestMethods.Ftp.UploadFile;
+
+                    Console.WriteLine(@"Copying \{0}", fi.Directory + "\\" + fi.Name);
+                    byte[] fileContents;
+                    fileContents = File.ReadAllBytes(fi.Directory + "\\" + fi.Name);
+
+                    request.ContentLength = fileContents.Length;
+
+                    using (Stream requestStream = request.GetRequestStream())
+                    {
+                        requestStream.Write(fileContents, 0, fileContents.Length);
+                    }
+
+                    using (FtpWebResponse response = (FtpWebResponse)request.GetResponse())
+                    {
+                        Console.WriteLine($"Upload File Complete, status {response.StatusDescription}");
+                        if (response.StatusCode == FtpStatusCode.ClosingData)
+                        {
+                            Console.WriteLine("Deleting {0} \n", fi.Directory + "\\" + fi.Name);
+                            File.Delete(fi.Directory + "\\" + fi.Name);
+                        }
+                    }
                 }
                
                  
@@ -62,8 +74,9 @@ namespace Posielanie_na_server
             catch (Exception err)
             {
                 Console.WriteLine("Nepreslo " + err);
+                Console.ReadKey();
             }
-            Console.ReadKey();
+            
         }
       
     }
